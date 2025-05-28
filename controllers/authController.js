@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import validate, { schemas } from "../middleware/validate.js";
 import logger from "../utils/logger.js";
-import { create } from "domain";
 
 export const register = [
   validate(schemas.register),

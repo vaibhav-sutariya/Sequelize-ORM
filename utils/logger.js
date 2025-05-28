@@ -9,19 +9,19 @@ const transport = pino.transport({
         translateTime: "yyyy-mm-dd HH:MM:ss",
         ignore: "pid,hostname",
       },
-      level: "debug", // Capture debug and above in console
+      level: "debug",
     },
     {
       target: "pino/file",
       options: { destination: "logs/error.log" },
-      level: "error", // Capture only errors in file
+      level: "error",
     },
   ],
 });
 
 const logger = pino(
   {
-    level: "debug", // Enable debug, info, error, etc.
+    level: "debug",
     timestamp: pino.stdTimeFunctions.isoTime,
   },
   transport
