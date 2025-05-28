@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import logger from "../utils/logger.js";
 
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.header("Authorization");
@@ -26,6 +27,11 @@ const authMiddleware = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
+    logger.error({
+      message: "Token verification error",
+      error: error.message,
+      stack: error.stack,
+    });
     next(error);
   }
 };

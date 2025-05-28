@@ -3,6 +3,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import validate, { schemas } from "../middleware/validate.js";
+import logger from "../utils/logger.js";
 
 export const register = [
   validate(schemas.register),
@@ -32,6 +33,11 @@ export const register = [
         .status(201)
         .json({ message: "User registered successfully, Now try login" });
     } catch (error) {
+      logger.error({
+        message: "Register error",
+        error: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   },
@@ -68,6 +74,11 @@ export const login = [
         user: { id: user.id, username: user.username, email },
       });
     } catch (error) {
+      logger.error({
+        message: "Login error",
+        error: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   },
@@ -99,6 +110,11 @@ export const forgotPassword = [
       const resetUrl = `${process.env.APP_URL}/api/auth/reset-password/${resetToken}`;
       res.json({ message: "Password reset link generated", resetUrl });
     } catch (error) {
+      logger.error({
+        message: "Forgot password error",
+        error: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   },
@@ -135,6 +151,11 @@ export const resetPassword = [
 
       res.json({ message: "Password reset successfully" });
     } catch (error) {
+      logger.error({
+        message: "Reset password error",
+        error: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   },
@@ -175,6 +196,11 @@ export const changePassword = [
 
       res.json({ message: "Password changed successfully" });
     } catch (error) {
+      logger.error({
+        message: "Change password error",
+        error: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   },

@@ -19,7 +19,11 @@ const initializeDatabase = async () => {
     await sequelize.sync({ alter: true });
     console.log("Database synced");
   } catch (error) {
-    console.error("Unable to connect to the database:", error);
+    logger.error({
+      message: "Unable to connect to the database",
+      error: error.message,
+      stack: error.stack,
+    });
     throw error;
   }
 };

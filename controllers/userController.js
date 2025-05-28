@@ -21,6 +21,11 @@ export const getProfile = async (req, res) => {
 
     res.json({ user });
   } catch (error) {
+    logger.error({
+      message: "Get profile error",
+      error: error.message,
+      stack: error.stack,
+    });
     next(error);
   }
 };
@@ -74,6 +79,11 @@ export const updateProfile = [
         user: { id: user.id, username: user.username, email: user.email },
       });
     } catch (error) {
+      logger.error({
+        message: "Update profile error",
+        error: error.message,
+        stack: error.stack,
+      });
       next(error);
     }
   },

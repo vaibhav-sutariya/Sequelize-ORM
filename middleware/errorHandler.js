@@ -1,5 +1,13 @@
+import logger from "../utils/logger.js";
+
 const errorHandler = (err, req, res, next) => {
-  console.error("Error:", err.message, err.stack);
+  logger.error({
+    message: err.message,
+    stack: err.stack,
+    status: err.status || 500,
+    path: req.path,
+    method: req.method,
+  });
 
   if (err.name === "SequelizeValidationError") {
     return res.status(400).json({
