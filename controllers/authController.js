@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/userModel.js";
 import validate, { schemas } from "../middleware/validate.js";
 import logger from "../utils/logger.js";
+import { create } from "domain";
 
 export const register = [
   validate(schemas.register),
@@ -12,6 +13,7 @@ export const register = [
     const { username, email, password } = req.body;
 
     try {
+      logger.debug({ msg: "Register attempt", username, email });
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         const error = new Error("Email already registered");
@@ -25,10 +27,11 @@ export const register = [
         username,
         email,
         password: hashedPassword,
-        createdBy: user.id,
-        updatedBy: user.id,
       });
-
+      user.createdBy = user.id;
+      user.updatedBy = user.id;
+      await user.save();
+      logger.info({ msg: "User registered", userId: user.id });
       res
         .status(201)
         .json({ message: "User registered successfully, Now try login" });
@@ -50,6 +53,7 @@ export const login = [
     const { email, password } = req.body;
 
     try {
+      logger.debug({ msg: "Login attempt", email });
       const user = await User.findOne({ where: { email } });
       if (!user) {
         return res.status(400).json({
@@ -64,7 +68,7 @@ export const login = [
         error.status = 400;
         return next(error);
       }
-
+      logger.info({ msg: "User logged in", userId: user.id });
       const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
         expiresIn: "1h",
       });
@@ -90,6 +94,7 @@ export const forgotPassword = [
     const { email } = req.body;
 
     try {
+      logger.debug({ msg: "Forgot password attempt", email });
       const user = await User.findOne({ where: { email } });
       if (!user) {
         const error = new Error("Email not registered");
@@ -106,7 +111,7 @@ export const forgotPassword = [
       user.resetPasswordToken = resetTokenHash;
       user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiration
       await user.save();
-
+      logger.info({ msg: "Password reset token generated", userId: user.id });
       const resetUrl = `${process.env.APP_URL}/api/auth/reset-password/${resetToken}`;
       res.json({ message: "Password reset link generated", resetUrl });
     } catch (error) {
@@ -126,6 +131,7 @@ export const resetPassword = [
     const { token, password } = req.body;
 
     try {
+      logger.debug({ msg: "Reset password attempt" });
       const resetTokenHash = crypto
         .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
         .update(token)
@@ -143,7 +149,7 @@ export const resetPassword = [
         error.status = 400;
         return next(error);
       }
-
+      logger.info({ msg: "Password reset successful", userId: user.id });
       user.password = await bcrypt.hash(password, 10);
       user.resetPasswordToken = null;
       user.resetPasswordExpires = null;
@@ -168,6 +174,8 @@ export const changePassword = [
     const { currentPassword, newPassword } = req.body;
 
     try {
+      logger.debug({ msg: "Change password attempt", userId: req.user?.id });
+
       if (!req.user || !req.user.id) {
         const error = new Error("Unauthorized: Invalid user data");
         error.status = 401;
@@ -193,7 +201,7 @@ export const changePassword = [
       user.password = hashedNewPassword;
       user.updatedBy = req.user.id;
       await user.save();
-
+      logger.info({ msg: "Password changed", userId: user.id });
       res.json({ message: "Password changed successfully" });
     } catch (error) {
       logger.error({

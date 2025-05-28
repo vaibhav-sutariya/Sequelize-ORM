@@ -1,8 +1,10 @@
 import { body, validationResult } from "express-validator";
 import User from "../models/userModel.js";
 import validate, { schemas } from "../middleware/validate.js";
+import logger from "../utils/logger.js";
 export const getProfile = async (req, res) => {
   try {
+    logger.debug({ msg: "Profile request", userId: req.user?.id });
     if (!req.user || !req.user.id) {
       const error = new Error("Unauthorized: Invalid user data");
       error.status = 401;
@@ -10,7 +12,15 @@ export const getProfile = async (req, res) => {
     }
 
     const user = await User.findByPk(req.user.id, {
-      attributes: ["id", "username", "email", "createdAt", "updatedAt"],
+      attributes: [
+        "id",
+        "username",
+        "email",
+        "createdAt",
+        "updatedAt",
+        "createdBy",
+        "updatedBy",
+      ],
     });
 
     if (!user) {
@@ -18,7 +28,7 @@ export const getProfile = async (req, res) => {
       error.status = 404;
       return next(error);
     }
-
+    logger.info({ msg: "Profile retrieved", userId: user.id });
     res.json({ user });
   } catch (error) {
     logger.error({
@@ -36,6 +46,13 @@ export const updateProfile = [
     const { username, email } = req.body;
 
     try {
+      logger.debug({
+        msg: "Update profile attempt",
+        userId: req.user?.id,
+        username,
+        email,
+      });
+
       if (!req.user || !req.user.id) {
         const error = new Error("Unauthorized: Invalid user data");
         error.status = 401;
@@ -73,6 +90,7 @@ export const updateProfile = [
         user.updatedBy = req.user.id;
         await user.save();
       }
+      logger.info({ msg: "Profile updated", userId: user.id });
 
       res.json({
         message: "Profile updated successfully",

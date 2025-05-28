@@ -1,4 +1,5 @@
 import Sequelize from "sequelize";
+import logger from "../utils/logger.js";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -15,9 +16,10 @@ const sequelize = new Sequelize(
 const initializeDatabase = async () => {
   try {
     await sequelize.authenticate();
-    console.log("Database connection established successfully");
-    await sequelize.sync({ alter: true });
-    console.log("Database synced");
+    logger.info({ msg: "Database connection established successfully" });
+    // await sequelize.sync({ alert: true, force: true });
+    await sequelize.sync({});
+    logger.info({ msg: "Database synced" });
   } catch (error) {
     logger.error({
       message: "Unable to connect to the database",

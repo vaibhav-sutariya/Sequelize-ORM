@@ -1,15 +1,30 @@
-import winston from "winston";
+import pino from "pino";
 
-const logger = winston.createLogger({
-  level: "error",
-  format: winston.format.combine(
-    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.File({ filename: "logs/error.log" }),
+const transport = pino.transport({
+  targets: [
+    {
+      target: "pino-pretty",
+      options: {
+        colorize: true,
+        translateTime: "yyyy-mm-dd HH:MM:ss",
+        ignore: "pid,hostname",
+      },
+      level: "debug", // Capture debug and above in console
+    },
+    {
+      target: "pino/file",
+      options: { destination: "logs/error.log" },
+      level: "error", // Capture only errors in file
+    },
   ],
 });
+
+const logger = pino(
+  {
+    level: "debug", // Enable debug, info, error, etc.
+    timestamp: pino.stdTimeFunctions.isoTime,
+  },
+  transport
+);
 
 export default logger;

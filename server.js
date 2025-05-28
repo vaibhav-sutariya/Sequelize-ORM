@@ -19,7 +19,9 @@ const startServer = async () => {
   try {
     await initializeDatabase();
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    app.listen(PORT, () =>
+      logger.info({ msg: `Server running on port ${PORT}` })
+    );
   } catch (error) {
     logger.error({
       message: "Failed to start server",
