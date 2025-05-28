@@ -1,6 +1,6 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
-module.exports = async (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return res
@@ -32,3 +32,5 @@ module.exports = async (req, res, next) => {
     return res.status(401).json({ message: "Token verification failed" });
   }
 };
+
+export default authMiddleware;

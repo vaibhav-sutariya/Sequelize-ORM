@@ -1,6 +1,6 @@
-const { body, validationResult } = require("express-validator");
-const User = require("../models/userModel");
-exports.getProfile = async (req, res) => {
+import { body, validationResult } from "express-validator";
+import User from "../models/userModel.js";
+export const getProfile = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
       return res
@@ -23,7 +23,7 @@ exports.getProfile = async (req, res) => {
   }
 };
 
-exports.updateProfile = [
+export const updateProfile = [
   body("username")
     .optional()
     .notEmpty()

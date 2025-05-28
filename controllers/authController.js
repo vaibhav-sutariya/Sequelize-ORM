@@ -1,11 +1,10 @@
-const bcrypt = require("bcryptjs");
-const crypto = require("crypto");
-const jwt = require("jsonwebtoken");
-const { body, validationResult } = require("express-validator");
-const User = require("../models/userModel");
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import { body, validationResult } from "express-validator";
+import User from "../models/userModel.js";
 
-exports.register = [
-  // Input validation
+export const register = [
   body("username").notEmpty().withMessage("Username is required"),
   body("email").isEmail().withMessage("Valid email is required"),
   body("password")
@@ -45,7 +44,7 @@ exports.register = [
   },
 ];
 
-exports.login = [
+export const login = [
   body("email").isEmail().withMessage("Valid email is required"),
   body("password").notEmpty().withMessage("Password is required"),
 
@@ -85,7 +84,7 @@ exports.login = [
   },
 ];
 
-exports.forgotPassword = [
+export const forgotPassword = [
   body("email").isEmail().withMessage("Valid email is required"),
 
   async (req, res) => {
@@ -120,7 +119,7 @@ exports.forgotPassword = [
   },
 ];
 
-exports.resetPassword = [
+export const resetPassword = [
   body("token").notEmpty().withMessage("Token is required"),
   body("password")
     .isLength({ min: 6 })
@@ -163,7 +162,7 @@ exports.resetPassword = [
   },
 ];
 
-exports.changePassword = [
+export const changePassword = [
   body("currentPassword")
     .notEmpty()
     .withMessage("Current password is required"),
