@@ -1,5 +1,6 @@
 import { body, validationResult } from "express-validator";
 import User from "../models/userModel.js";
+import validate, { schemas } from "../middleware/validate.js";
 export const getProfile = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
@@ -25,18 +26,8 @@ export const getProfile = async (req, res) => {
 };
 
 export const updateProfile = [
-  body("username")
-    .optional()
-    .notEmpty()
-    .withMessage("Username cannot be empty"),
-  body("email").optional().isEmail().withMessage("Valid email is required"),
-
+  validate(schemas.updateProfile),
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { username, email } = req.body;
 
     try {

@@ -3,20 +3,12 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { body, validationResult } from "express-validator";
 import User from "../models/userModel.js";
+import validate, { schemas } from "../middleware/validate.js";
 
 export const register = [
-  body("username").notEmpty().withMessage("Username is required"),
-  body("email").isEmail().withMessage("Valid email is required"),
-  body("password")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters"),
+  validate(schemas.register),
 
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
+  async (req, res, next) => {
     const { username, email, password } = req.body;
 
     try {
@@ -47,15 +39,9 @@ export const register = [
 ];
 
 export const login = [
-  body("email").isEmail().withMessage("Valid email is required"),
-  body("password").notEmpty().withMessage("Password is required"),
+  validate(schemas.login),
 
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
+  async (req, res, next) => {
     const { email, password } = req.body;
 
     try {
@@ -89,14 +75,8 @@ export const login = [
 ];
 
 export const forgotPassword = [
-  body("email").isEmail().withMessage("Valid email is required"),
-
+  validate(schemas.forgotPassword),
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { email } = req.body;
 
     try {
@@ -126,17 +106,8 @@ export const forgotPassword = [
 ];
 
 export const resetPassword = [
-  body("token").notEmpty().withMessage("Token is required"),
-  body("password")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters"),
-
+  validate(schemas.resetPassword),
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { token, password } = req.body;
 
     try {
@@ -171,19 +142,9 @@ export const resetPassword = [
 ];
 
 export const changePassword = [
-  body("currentPassword")
-    .notEmpty()
-    .withMessage("Current password is required"),
-  body("newPassword")
-    .isLength({ min: 6 })
-    .withMessage("New password must be at least 6 characters"),
+  validate(schemas.changePassword),
 
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { currentPassword, newPassword } = req.body;
 
     try {
