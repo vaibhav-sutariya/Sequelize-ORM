@@ -12,7 +12,7 @@ app.use("/api/users", userRoutes);
 
 sequelize
   .sync({
-    // force: true,
+    force: true,
   })
   .then(() => console.log("Database synced"))
   .catch((err) => console.error("Error syncing database:", err));

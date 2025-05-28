@@ -67,6 +67,7 @@ exports.updateProfile = [
       }
 
       if (username || email) {
+        user.updatedBy = req.user.id;
         await user.save();
       }
 

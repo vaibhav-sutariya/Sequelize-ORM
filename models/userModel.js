@@ -34,6 +34,22 @@ const User = sequelize.define(
       type: DataTypes.DATE,
       allowNull: true,
     },
+    createdBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "Users",
+        key: "id",
+      },
+    },
+    updatedBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: {
+        model: "Users",
+        key: "id",
+      },
+    },
   },
   {
     timestamps: true,

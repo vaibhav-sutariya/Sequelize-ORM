@@ -32,6 +32,8 @@ exports.register = [
         username,
         email,
         password: hashedPassword,
+        createdBy: user.id,
+        updatedBy: user.id,
       });
 
       res
@@ -199,6 +201,7 @@ exports.changePassword = [
       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
       user.password = hashedNewPassword;
+      user.updatedBy = req.user.id;
       await user.save();
 
       res.json({ message: "Password changed successfully" });
