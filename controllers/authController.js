@@ -22,7 +22,9 @@ export const register = [
     try {
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
+        const error = new Error("Email already registered");
+        error.status = 400;
+        return next(error);
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -39,7 +41,7 @@ export const register = [
         .status(201)
         .json({ message: "User registered successfully, Now try login" });
     } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+      next(error);
     }
   },
 ];
@@ -67,7 +69,9 @@ export const login = [
 
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        return res.status(400).json({ message: "Invalid Paasword" });
+        const error = new Error("Invalid credentials");
+        error.status = 400;
+        return next(error);
       }
 
       const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
@@ -79,7 +83,7 @@ export const login = [
         user: { id: user.id, username: user.username, email },
       });
     } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+      next(error);
     }
   },
 ];
@@ -98,7 +102,9 @@ export const forgotPassword = [
     try {
       const user = await User.findOne({ where: { email } });
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        const error = new Error("Email not registered");
+        error.status = 400;
+        return next(error);
       }
 
       const resetToken = crypto.randomBytes(32).toString("hex");
@@ -114,7 +120,7 @@ export const forgotPassword = [
       const resetUrl = `${process.env.APP_URL}/api/auth/reset-password/${resetToken}`;
       res.json({ message: "Password reset link generated", resetUrl });
     } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+      next(error);
     }
   },
 ];
@@ -147,7 +153,9 @@ export const resetPassword = [
       });
 
       if (!user) {
-        return res.status(400).json({ message: "Invalid or expired token" });
+        const error = new Error("Invalid or expired token");
+        error.status = 400;
+        return next(error);
       }
 
       user.password = await bcrypt.hash(password, 10);
@@ -157,7 +165,7 @@ export const resetPassword = [
 
       res.json({ message: "Password reset successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Server error", error: error.message });
+      next(error);
     }
   },
 ];
@@ -180,21 +188,23 @@ export const changePassword = [
 
     try {
       if (!req.user || !req.user.id) {
-        return res
-          .status(401)
-          .json({ message: "Unauthorized: Invalid user data" });
+        const error = new Error("Unauthorized: Invalid user data");
+        error.status = 401;
+        return next(error);
       }
 
       const user = await User.findByPk(req.user.id);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        const error = new Error("User not found");
+        error.status = 404;
+        return next(error);
       }
 
       const isMatch = await bcrypt.compare(currentPassword, user.password);
       if (!isMatch) {
-        return res
-          .status(400)
-          .json({ message: "Current password is incorrect" });
+        const error = new Error("Current password is incorrect");
+        error.status = 400;
+        return next(error);
       }
 
       const hashedNewPassword = await bcrypt.hash(newPassword, 10);
@@ -205,8 +215,7 @@ export const changePassword = [
 
       res.json({ message: "Password changed successfully" });
     } catch (error) {
-      console.error("Change password error:", error.message);
-      res.status(500).json({ message: "Server error", error: error.message });
+      next(error);
     }
   },
 ];

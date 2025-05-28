@@ -3,9 +3,9 @@ import User from "../models/userModel.js";
 export const getProfile = async (req, res) => {
   try {
     if (!req.user || !req.user.id) {
-      return res
-        .status(401)
-        .json({ message: "Unauthorized: Invalid user data" });
+      const error = new Error("Unauthorized: Invalid user data");
+      error.status = 401;
+      return next(error);
     }
 
     const user = await User.findByPk(req.user.id, {
@@ -13,13 +13,14 @@ export const getProfile = async (req, res) => {
     });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      const error = new Error("User not found");
+      error.status = 404;
+      return next(error);
     }
 
     res.json({ user });
   } catch (error) {
-    console.error("Get profile error:", error.message);
-    res.status(500).json({ message: "Server error", error: error.message });
+    next(error);
   }
 };
 
@@ -40,20 +41,24 @@ export const updateProfile = [
 
     try {
       if (!req.user || !req.user.id) {
-        return res
-          .status(401)
-          .json({ message: "Unauthorized: Invalid user data" });
+        const error = new Error("Unauthorized: Invalid user data");
+        error.status = 401;
+        return next(error);
       }
 
       const user = await User.findByPk(req.user.id);
       if (!user) {
-        return res.status(404).json({ message: "User not found" });
+        const error = new Error("User not found");
+        error.status = 404;
+        return next(error);
       }
 
       if (username && username !== user.username) {
         const existingUsername = await User.findOne({ where: { username } });
         if (existingUsername) {
-          return res.status(400).json({ message: "Username already taken" });
+          const error = new Error("Username already taken");
+          error.status = 400;
+          return next(error);
         }
         user.username = username;
       }
@@ -61,7 +66,9 @@ export const updateProfile = [
       if (email && email !== user.email) {
         const existingEmail = await User.findOne({ where: { email } });
         if (existingEmail) {
-          return res.status(400).json({ message: "Email already in use" });
+          const error = new Error("Email already in use");
+          error.status = 400;
+          return next(error);
         }
         user.email = email;
       }
@@ -76,8 +83,7 @@ export const updateProfile = [
         user: { id: user.id, username: user.username, email: user.email },
       });
     } catch (error) {
-      console.error("Update profile error:", error.message);
-      res.status(500).json({ message: "Server error", error: error.message });
+      next(error);
     }
   },
 ];
