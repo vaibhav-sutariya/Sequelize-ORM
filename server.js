@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import sequelize from "./config/database.js";
+import { initializeDatabase } from "./db/config.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import errorHandler from "./middleware/errorHandler.js";
@@ -14,12 +14,15 @@ app.use("/api/users", userRoutes);
 
 app.use(errorHandler);
 
-sequelize
-  .sync({
-    force: true,
-  })
-  .then(() => console.log("Database synced"))
-  .catch((err) => console.error("Error syncing database:", err));
+const startServer = async () => {
+  try {
+    await initializeDatabase();
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+};
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+startServer();
