@@ -3,6 +3,7 @@ import express from "express";
 import { initializeDatabase } from "./db/config.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import vendorRoutes from "./routes/vendorRoutes.js";
 import errorHandler from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
 
@@ -12,6 +13,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/vendors", vendorRoutes);
 
 app.use(errorHandler);
 

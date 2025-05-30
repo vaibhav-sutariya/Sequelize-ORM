@@ -2,7 +2,8 @@ import jwt from "jsonwebtoken";
 import logger from "../utils/logger.js";
 
 const authMiddleware = async (req, res, next) => {
-  logger.debug({ msg: "Auth middleware invoked", path: req.path });
+  logger.debug({ message: "Auth middleware invoked", path: req.path });
+
   const authHeader = req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
     const error = new Error("Authorization header missing or invalid");
@@ -12,7 +13,7 @@ const authMiddleware = async (req, res, next) => {
 
   const token = authHeader.replace("Bearer ", "");
   if (!token) {
-    const error = new Error("Token missing");
+    const error = new Error("No token provided");
     error.status = 401;
     return next(error);
   }
@@ -24,8 +25,10 @@ const authMiddleware = async (req, res, next) => {
       error.status = 401;
       return next(error);
     }
-    logger.info({ msg: "Token verified", userId: decoded.id });
-    req.user = decoded;
+
+    logger.info({ message: "Token verified", vendorId: decoded.id });
+
+    req.vendor = decoded;
     next();
   } catch (error) {
     logger.error({

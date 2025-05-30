@@ -9,10 +9,10 @@ export const register = [
   validate(schemas.register),
 
   async (req, res, next) => {
-    const { username, email, password } = req.body;
+    const { firstName, lastName, email, password } = req.body;
 
     try {
-      logger.debug({ msg: "Register attempt", username, email });
+      logger.debug({ msg: "Register attempt", firstName, lastName, email });
       const existingUser = await User.findOne({ where: { email } });
       if (existingUser) {
         const error = new Error("Email already registered");
@@ -23,7 +23,8 @@ export const register = [
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const user = await User.create({
-        username,
+        firstName,
+        lastName,
         email,
         password: hashedPassword,
       });
