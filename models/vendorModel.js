@@ -32,22 +32,6 @@ const Vendor = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    resetPasswordToken: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    resetPasswordExpires: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    businessDetailsToken: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    businessDetailsTokenExpires: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
     businessName: {
       type: DataTypes.STRING,
       allowNull: true,

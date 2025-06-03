@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Vendor from "../models/vendorModel.js";
+import Token from "../models/token_model.js";
 import validate, { schemas } from "../middleware/validate.js";
 import logger from "../utils/logger.js";
 import { Op } from "sequelize";
@@ -17,7 +18,7 @@ export const registerVendor = [
       const hashedPassword = await bcrypt.hash(password, 10);
       const businessDetailsToken = crypto.randomBytes(32).toString("hex");
       const businessDetailsTokenHash = crypto
-        .createHmac("sha256", process.env.JWT_SECRET)
+        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
         .update(businessDetailsToken)
         .digest("hex");
 
@@ -27,13 +28,20 @@ export const registerVendor = [
         email,
         phoneNumber,
         password: hashedPassword,
-        businessDetailsToken: businessDetailsTokenHash,
-        businessDetailsTokenExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+        createdBy: null, // Will be updated after creation
+        updatedBy: null,
       });
 
       await vendor.update({
         createdBy: vendor.id,
         updatedBy: vendor.id,
+      });
+
+      await Token.create({
+        vendorId: vendor.id,
+        type: "business_details",
+        token: businessDetailsTokenHash,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
       });
 
       logger.info({ message: "Vendor registered", vendorId: vendor.id });
@@ -72,24 +80,26 @@ export const updateBusinessDetails = [
       logger.debug({ message: "Update business details attempt" });
 
       const businessDetailsTokenHash = crypto
-        .createHmac("sha256", process.env.JWT_SECRET)
+        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
         .update(businessDetailsToken)
         .digest("hex");
 
-      const vendor = await Vendor.findOne({
+      const token = await Token.findOne({
         where: {
-          businessDetailsToken: businessDetailsTokenHash,
-          businessDetailsTokenExpires: {
-            [Op.gt]: new Date(),
-          },
+          type: "business_details",
+          token: businessDetailsTokenHash,
+          expiresAt: { [Op.gt]: new Date() },
         },
+        include: [{ model: Vendor }],
       });
 
-      if (!vendor) {
+      if (!token || !token.Vendor) {
         const error = new Error("Invalid or expired business details token");
         error.status = 400;
         return next(error);
       }
+
+      const vendor = token.Vendor;
 
       await vendor.update({
         businessName,
@@ -100,9 +110,9 @@ export const updateBusinessDetails = [
         gstNumber,
         notes,
         updatedBy: vendor.id,
-        businessDetailsToken: null,
-        businessDetailsTokenExpires: null,
       });
+
+      await token.destroy();
 
       logger.info({ message: "Business details updated", vendorId: vendor.id });
 
@@ -300,7 +310,7 @@ export const deleteVendor = async (req, res, next) => {
       return next(error);
     }
 
-    await vendor.destroy();
+    await vendor.destroy(); // Tokens will be deleted via CASCADE
 
     logger.info({ message: "Vendor deleted", vendorId: id });
 
@@ -332,13 +342,15 @@ export const forgotPassword = [
 
       const resetToken = crypto.randomBytes(32).toString("hex");
       const resetTokenHash = crypto
-        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
+        .createHmac("sha256", process.env.RESET_RESET_TOKEN_SECRET)
         .update(resetToken)
         .digest("hex");
 
-      await vendor.update({
-        resetPasswordToken: resetTokenHash,
-        resetPasswordExpires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+      await Token.create({
+        vendorId: vendor.id,
+        type: "reset_password",
+        token: resetTokenHash,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
       });
 
       logger.info({
@@ -368,28 +380,37 @@ export const resetPassword = [
       logger.debug({ message: "Reset password attempt" });
 
       const resetTokenHash = crypto
-        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
+        .createHmac("sha256", process.env.RESET_RESET_TOKEN_SECRET)
         .update(token)
         .digest("hex");
 
-      const vendor = await Vendor.findOne({
+      const tokenRecord = await Token.findOne({
         where: {
-          resetPasswordToken: resetTokenHash,
-          resetPasswordExpires: { [require("sequelize").Op.gt]: new Date() },
+          type: "reset_password",
+          token: resetTokenHash,
+          expiresAt: { [require("sequelize").Op.gt]: new Date() },
         },
+        include: [{ model: Vendor }],
       });
 
-      if (!vendor) {
+      if (!tokenRecord || !tokenRecord.Vendor) {
         const error = new Error("Invalid or expired reset token");
         error.status = 400;
         return next(error);
       }
 
+      const vendor = tokenRecord.Vendor;
       const hashedPassword = await bcrypt.hash(password, 10);
+
       await vendor.update({
         password: hashedPassword,
-        resetPasswordToken: null,
-        resetPasswordExpires: null,
+      });
+
+      await Token.destroy({
+        where: {
+          vendorId: vendor.id,
+          type: "reset_password",
+        },
       });
 
       logger.info({
