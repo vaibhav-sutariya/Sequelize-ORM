@@ -17,10 +17,13 @@ const Token = sequelize.define(
         model: "Vendors",
         key: "id",
       },
-      onDelete: "CASCADE",
     },
     type: {
-      type: DataTypes.ENUM("reset_password", "business_details"),
+      type: DataTypes.ENUM(
+        "reset_password",
+        "business_details",
+        "refresh_token"
+      ),
       allowNull: false,
       validate: {
         notEmpty: { msg: "Token type is required" },

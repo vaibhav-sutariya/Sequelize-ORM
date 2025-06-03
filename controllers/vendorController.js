@@ -5,6 +5,7 @@ import Vendor from "../models/vendorModel.js";
 import Token from "../models/token_model.js";
 import validate, { schemas } from "../middleware/validate.js";
 import logger from "../utils/logger.js";
+import { sendPasswordResetEmail } from "../utils/email.js";
 import { Op } from "sequelize";
 
 export const registerVendor = [
@@ -165,6 +166,27 @@ export const loginVendor = [
         error.status = 400;
         return next(error);
       }
+      // Generate access token (short-lived)
+      const accessToken = jwt.sign(
+        { id: vendor.id },
+        process.env.JWT_SECRET,
+        { expiresIn: "15m" } // Short-lived: 15 minutes
+      );
+
+      // Generate refresh token
+      const refreshToken = crypto.randomBytes(32).toString("hex");
+      const refreshTokenHash = crypto
+        .createHmac("sha256", process.env.REFRESH_TOKEN_SECRET)
+        .update(refreshToken)
+        .digest("hex");
+
+      // Store refresh token
+      await Token.create({
+        vendorId: vendor.id,
+        type: "refresh_token",
+        token: refreshTokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
 
       logger.info({ message: "Vendor logged in", vendorId: vendor.id });
 
@@ -173,7 +195,8 @@ export const loginVendor = [
       });
 
       res.json({
-        token,
+        accessToken,
+        refreshToken,
         vendor: {
           id: vendor.id,
           firstName: vendor.firstName,
@@ -192,6 +215,140 @@ export const loginVendor = [
     } catch (error) {
       logger.error({
         message: "Vendor login error",
+        error: error.message,
+        stack: error.stack,
+      });
+      next(error);
+    }
+  },
+];
+export const refreshToken = [
+  async (req, res, next) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      const error = new Error("Refresh token is required");
+      error.status = 400;
+      return next(error);
+    }
+
+    try {
+      logger.debug({ message: "Refresh token attempt" });
+
+      const refreshTokenHash = crypto
+        .createHmac("sha256", process.env.REFRESH_TOKEN_SECRET)
+        .update(refreshToken)
+        .digest("hex");
+
+      const token = await Token.findOne({
+        where: {
+          type: "refresh_token",
+          token: refreshTokenHash,
+          expiresAt: { [Op.gt]: new Date() },
+          revoked: false,
+        },
+        include: [{ model: Vendor }],
+      });
+
+      if (!token || !token.Vendor) {
+        const error = new Error("Invalid or expired refresh token");
+        error.status = 401;
+        return next(error);
+      }
+
+      // Generate new access token
+      const accessToken = jwt.sign(
+        { id: token.Vendor.id },
+        process.env.JWT_SECRET,
+        { expiresIn: "15m" }
+      );
+
+      // Optionally rotate refresh token
+      await token.update({
+        revoked: true,
+      });
+
+      const newRefreshToken = crypto.randomBytes(32).toString("hex");
+      const newRefreshTokenHash = crypto
+        .createHmac("sha256", process.env.REFRESH_TOKEN_SECRET)
+        .update(newRefreshToken)
+        .digest("hex");
+
+      await Token.create({
+        vendorId: token.Vendor.id,
+        type: "refresh_token",
+        token: newRefreshTokenHash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      });
+
+      logger.info({
+        message: "Access token refreshed",
+        vendorId: token.Vendor.id,
+      });
+
+      res.json({
+        accessToken,
+        refreshToken: newRefreshToken,
+      });
+    } catch (error) {
+      logger.error({
+        message: "Refresh token error",
+        error: error.message,
+        stack: error.stack,
+      });
+      next(error);
+    }
+  },
+];
+
+export const logoutVendor = [
+  async (req, res, next) => {
+    const { refreshToken } = req.body;
+
+    if (!req.vendor || !req.vendor.id) {
+      const error = new Error("Unauthorized: Invalid vendor data");
+      error.status = 401;
+      return next(error);
+    }
+
+    try {
+      logger.debug({ message: "Logout attempt", vendorId: req.vendor.id });
+
+      if (refreshToken) {
+        const refreshTokenHash = crypto
+          .createHmac("sha256", process.env.REFRESH_TOKEN_SECRET)
+          .update(refreshToken)
+          .digest("hex");
+
+        await Token.update(
+          { revoked: true },
+          {
+            where: {
+              vendorId: req.vendor.id,
+              type: "refresh_token",
+              token: refreshTokenHash,
+            },
+          }
+        );
+      } else {
+        // Revoke all refresh tokens for the vendor
+        await Token.update(
+          { revoked: true },
+          {
+            where: {
+              vendorId: req.vendor.id,
+              type: "refresh_token",
+            },
+          }
+        );
+      }
+
+      logger.info({ message: "Vendor logged out", vendorId: req.vendor.id });
+
+      res.json({ message: "Logged out successfully" });
+    } catch (error) {
+      logger.error({
+        message: "Logout error",
         error: error.message,
         stack: error.stack,
       });
@@ -342,7 +499,7 @@ export const forgotPassword = [
 
       const resetToken = crypto.randomBytes(32).toString("hex");
       const resetTokenHash = crypto
-        .createHmac("sha256", process.env.RESET_RESET_TOKEN_SECRET)
+        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
         .update(resetToken)
         .digest("hex");
 
@@ -359,6 +516,7 @@ export const forgotPassword = [
       });
 
       const resetUrl = `${process.env.APP_URL}/api/vendors/reset-password/${resetToken}`;
+      await sendPasswordResetEmail(email, resetUrl);
       res.json({ message: "Password reset link generated", resetUrl });
     } catch (error) {
       logger.error({
@@ -380,7 +538,7 @@ export const resetPassword = [
       logger.debug({ message: "Reset password attempt" });
 
       const resetTokenHash = crypto
-        .createHmac("sha256", process.env.RESET_RESET_TOKEN_SECRET)
+        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
         .update(token)
         .digest("hex");
 
@@ -388,7 +546,7 @@ export const resetPassword = [
         where: {
           type: "reset_password",
           token: resetTokenHash,
-          expiresAt: { [require("sequelize").Op.gt]: new Date() },
+          expiresAt: { [Op.gt]: new Date() },
         },
         include: [{ model: Vendor }],
       });
@@ -405,6 +563,17 @@ export const resetPassword = [
       await vendor.update({
         password: hashedPassword,
       });
+
+      // Revoke all refresh tokens on password reset
+      await Token.update(
+        { revoked: true },
+        {
+          where: {
+            vendorId: vendor.id,
+            type: "refresh_token",
+          },
+        }
+      );
 
       await Token.destroy({
         where: {
@@ -466,6 +635,17 @@ export const changePassword = [
         password: hashedPassword,
         updatedBy: req.vendor.id,
       });
+
+      // Revoke all refresh tokens on password change
+      await Token.update(
+        { revoked: true },
+        {
+          where: {
+            vendorId: vendor.id,
+            type: "refresh_token",
+          },
+        }
+      );
 
       logger.info({
         message: "Password changed successfully",

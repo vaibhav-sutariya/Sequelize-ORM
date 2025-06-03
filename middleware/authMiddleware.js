@@ -25,10 +25,10 @@ const authMiddleware = async (req, res, next) => {
       error.status = 401;
       return next(error);
     }
+    req.vendor = { id: decoded.id };
 
     logger.info({ message: "Token verified", vendorId: decoded.id });
 
-    req.vendor = decoded;
     next();
   } catch (error) {
     logger.error({
