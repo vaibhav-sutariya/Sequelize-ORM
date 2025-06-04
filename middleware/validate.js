@@ -191,6 +191,37 @@ export const schemas = {
       .messages({
         "object.min": "At least one field is required for update",
       }),
+    selectServices: Joi.object({
+      businessDetailsToken: Joi.string().required().messages({
+        "string.empty": "Business details token is required",
+        "any.required": "Business details token is required",
+      }),
+      serviceIds: Joi.array()
+        .items(Joi.string().uuid().required())
+        .min(1)
+        .required()
+        .messages({
+          "array.min": "At least one service must be selected",
+          "any.required": "Service IDs are required",
+          "string.uuid": "Each service ID must be a valid UUID",
+        }),
+    }),
+    addService: Joi.object({
+      name: Joi.string().trim().required().messages({
+        "string.empty": "Service name is required",
+        "any.required": "Service name is required",
+      }),
+      description: Joi.string().optional().allow("").messages({
+        "string.base": "Description must be a string",
+      }),
+      price: Joi.number().optional().allow("").messages({
+        "number.base": "Price must be a number",
+        "string.empty": "Price cannot be empty",
+      }),
+      nextService: Joi.string().optional().allow("").messages({
+        "string.base": "Next service must be a string",
+      }),
+    }),
   },
 };
 

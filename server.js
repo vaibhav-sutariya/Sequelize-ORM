@@ -5,6 +5,7 @@ import { initializeDatabase } from "./db/config.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import vendorRoutes from "./routes/vendorRoutes.js";
+import serviceRoutes from "./routes/serviceRoutes.js";
 import errorHandler from "./middleware/errorHandler.js";
 import logger from "./utils/logger.js";
 
@@ -36,6 +37,7 @@ app.use("/api/vendors/forgot-password", sensitiveLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/vendors", vendorRoutes);
+app.use("/api/services", serviceRoutes);
 
 app.use(errorHandler);
 

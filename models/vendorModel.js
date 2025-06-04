@@ -72,6 +72,11 @@ const Vendor = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    services: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: [],
+    },
     createdBy: {
       type: DataTypes.UUID,
       allowNull: true,

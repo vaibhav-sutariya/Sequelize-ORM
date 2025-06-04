@@ -2,6 +2,8 @@ import express from "express";
 import {
   registerVendor,
   updateBusinessDetails,
+  selectVendorServices,
+  addVendorService,
   loginVendor,
   updateVendor,
   deleteVendor,
@@ -17,6 +19,8 @@ const router = express.Router();
 
 router.post("/register", registerVendor);
 router.post("/update-business", updateBusinessDetails);
+router.post("/select-services", selectVendorServices);
+router.post("/add-service", authMiddleware, addVendorService);
 router.post("/login", loginVendor);
 router.post("/refresh-token", refreshToken);
 router.post("/logout", authMiddleware, logoutVendor);

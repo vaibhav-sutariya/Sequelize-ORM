@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Vendor from "../models/vendorModel.js";
 import Token from "../models/token_model.js";
+import Service from "../models/servicesModel.js";
 import validate, { schemas } from "../middleware/validate.js";
 import logger from "../utils/logger.js";
 import { sendPasswordResetEmail } from "../utils/email.js";
@@ -113,12 +114,14 @@ export const updateBusinessDetails = [
         updatedBy: vendor.id,
       });
 
-      await token.destroy();
+      // await token.destroy();
 
       logger.info({ message: "Business details updated", vendorId: vendor.id });
 
       res.json({
-        message: "Business details updated successfully. Please log in.",
+        message:
+          "Business details updated successfully. Please select services.",
+        businessDetailsToken,
         vendor: {
           id: vendor.id,
           firstName: vendor.firstName,
@@ -137,6 +140,165 @@ export const updateBusinessDetails = [
     } catch (error) {
       logger.error({
         message: "Update business details error",
+        error: error.message,
+        stack: error.stack,
+      });
+      next(error);
+    }
+  },
+];
+
+export const selectVendorServices = [
+  validate(schemas.vendor.selectServices),
+  async (req, res, next) => {
+    const { businessDetailsToken, serviceIds } = req.body;
+
+    try {
+      logger.debug({ message: "Select vendor services attempt" });
+
+      const businessDetailsTokenHash = crypto
+        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
+        .update(businessDetailsToken)
+        .digest("hex");
+
+      const token = await Token.findOne({
+        where: {
+          type: "business_details",
+          token: businessDetailsTokenHash,
+          expiresAt: { [Op.gt]: new Date() },
+        },
+        include: [{ model: Vendor }],
+      });
+
+      if (!token || !token.Vendor) {
+        const error = new Error("Invalid or expired business details token");
+        error.status = 400;
+        return next(error);
+      }
+
+      const vendor = token.Vendor;
+
+      // Verify all service IDs exist
+      const services = await Service.findAll({
+        where: { id: { [Op.in]: serviceIds } },
+      });
+
+      if (services.length !== serviceIds.length) {
+        const error = new Error("One or more service IDs are invalid");
+        error.status = 400;
+        return next(error);
+      }
+
+      // Update vendor with selected service IDs
+      await vendor.update({
+        services: serviceIds,
+        updatedBy: vendor.id,
+      });
+
+      // Destroy the business details token
+      await token.destroy();
+
+      logger.info({ message: "Vendor services selected", vendorId: vendor.id });
+
+      res.json({
+        message: "Services selected successfully. Please log in.",
+        vendor: {
+          id: vendor.id,
+          firstName: vendor.firstName,
+          lastName: vendor.lastName,
+          email: vendor.email,
+          phoneNumber: vendor.phoneNumber,
+          businessName: vendor.businessName,
+          businessAddress: vendor.businessAddress,
+          state: vendor.state,
+          city: vendor.city,
+          postalCode: vendor.postalCode,
+          gstNumber: vendor.gstNumber,
+          notes: vendor.notes,
+          services: services.map((service) => ({
+            id: service.id,
+            name: service.name,
+            description: service.description,
+          })),
+        },
+      });
+    } catch (error) {
+      logger.error({
+        message: "Select vendor services error",
+        error: error.message,
+        stack: error.stack,
+      });
+      next(error);
+    }
+  },
+];
+
+export const addVendorService = [
+  validate(schemas.vendor.addService),
+  async (req, res, next) => {
+    const { name, description, price, nextService } = req.body;
+
+    try {
+      logger.debug({ message: "Add vendor service attempt", name });
+
+      if (!req.vendor || !req.vendor.id) {
+        const error = new Error("Unauthorized: Invalid vendor data");
+        error.status = 401;
+        return next(error);
+      }
+
+      const vendor = await Vendor.findByPk(req.vendor.id);
+      if (!vendor) {
+        const error = new Error("Vendor not found");
+        error.status = 404;
+        return next(error);
+      }
+
+      // Check if service already exists
+      let service = await Service.findOne({ where: { name } });
+      if (service) {
+        const error = new Error("Service already exists");
+        error.status = 400;
+        return next(error);
+      }
+
+      // Create new service
+      service = await Service.create({
+        name,
+        description,
+        price: price,
+        nextService: nextService,
+        createdBy: vendor.id,
+        updatedBy: vendor.id,
+      });
+
+      // Add service ID to vendor's services array
+      const currentServices = vendor.services || [];
+      if (!currentServices.includes(service.id)) {
+        currentServices.push(service.id);
+        await vendor.update({
+          services: currentServices,
+          updatedBy: vendor.id,
+        });
+      }
+
+      logger.info({
+        message: "Service added and associated",
+        vendorId: vendor.id,
+        serviceId: service.id,
+      });
+
+      res.status(201).json({
+        message: "Service added successfully",
+        service: {
+          id: service.id,
+          name: service.name,
+          description: service.description,
+        },
+      });
+    } catch (error) {
+      logger.error({
+        message: "Add vendor service error",
         error: error.message,
         stack: error.stack,
       });
@@ -167,11 +329,9 @@ export const loginVendor = [
         return next(error);
       }
       // Generate access token (short-lived)
-      const accessToken = jwt.sign(
-        { id: vendor.id },
-        process.env.JWT_SECRET,
-        { expiresIn: "15m" } // Short-lived: 15 minutes
-      );
+      const accessToken = jwt.sign({ id: vendor.id }, process.env.JWT_SECRET, {
+        expiresIn: "30d",
+      });
 
       // Generate refresh token
       const refreshToken = crypto.randomBytes(32).toString("hex");
@@ -187,12 +347,14 @@ export const loginVendor = [
         token: refreshTokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       });
-
+      // Fetch services for the vendor
+      const services = vendor.services?.length
+        ? await Service.findAll({
+            where: { id: { [Op.in]: vendor.services } },
+            attributes: ["id", "name", "description"],
+          })
+        : [];
       logger.info({ message: "Vendor logged in", vendorId: vendor.id });
-
-      const token = jwt.sign({ id: vendor.id }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
 
       res.json({
         accessToken,
@@ -210,6 +372,11 @@ export const loginVendor = [
           postalCode: vendor.postalCode,
           gstNumber: vendor.gstNumber,
           notes: vendor.notes,
+          services: services.map((service) => ({
+            id: service.id,
+            name: service.name,
+            description: service.description,
+          })),
         },
       });
     } catch (error) {
