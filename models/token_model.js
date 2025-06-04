@@ -22,7 +22,8 @@ const Token = sequelize.define(
       type: DataTypes.ENUM(
         "reset_password",
         "business_details",
-        "refresh_token"
+        "refresh_token",
+        "reset_otp"
       ),
       allowNull: false,
       validate: {

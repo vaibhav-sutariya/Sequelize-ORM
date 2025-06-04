@@ -61,23 +61,20 @@ export const schemas = {
   forgotPassword: Joi.object({
     email: Joi.string()
       .email({ tlds: { allow: false } })
-      .required()
-      .messages({
-        "string.email": "Valid email is required",
-        "string.empty": "Email is required",
-        "any.required": "Email is required",
-      }),
+      .required(),
+  }),
+  verifyOtp: Joi.object({
+    email: Joi.string()
+      .email({ tlds: { allow: false } })
+      .required(),
+    otp: Joi.string()
+      .length(6)
+      .pattern(/^\d{6}$/)
+      .required(),
   }),
   resetPassword: Joi.object({
-    token: Joi.string().required().messages({
-      "string.empty": "Token is required",
-      "any.required": "Token is required",
-    }),
-    password: Joi.string().min(6).required().messages({
-      "string.min": "Password must be at least 6 characters",
-      "string.empty": "Password is required",
-      "any.required": "Password is required",
-    }),
+    token: Joi.string().required(),
+    password: Joi.string().min(6).required(),
   }),
   changePassword: Joi.object({
     currentPassword: Joi.string().required().messages({
@@ -213,13 +210,6 @@ export const schemas = {
       }),
       description: Joi.string().optional().allow("").messages({
         "string.base": "Description must be a string",
-      }),
-      price: Joi.number().optional().allow("").messages({
-        "number.base": "Price must be a number",
-        "string.empty": "Price cannot be empty",
-      }),
-      nextService: Joi.string().optional().allow("").messages({
-        "string.base": "Next service must be a string",
       }),
     }),
   },

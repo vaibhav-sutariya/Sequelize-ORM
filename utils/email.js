@@ -1,36 +1,41 @@
 import nodemailer from "nodemailer";
 import logger from "./logger.js";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST, // e.g., smtp.gmail.com
-  port: process.env.EMAIL_PORT || 587,
-  secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
+const transport = nodemailer.createTransport({
+  host: process.env.MAILTRAP_HOST || "sandbox.smtp.mailtrap.io",
+  port: parseInt(process.env.MAILTRAP_PORT, 10) || 2525,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.MAILTRAP_USER || "eee713053e80b0",
+    pass: process.env.MAILTRAP_PASS,
   },
 });
 
-export const sendPasswordResetEmail = async (to, resetUrl) => {
+export const sendOtpEmail = async (toEmail, otp) => {
   try {
-    await transporter.sendMail({
-      from: `"Your App Name" <${process.env.EMAIL_USER}>`,
-      to,
-      subject: "Password Reset Request",
+    logger.debug({ message: "Sending OTP email", toEmail });
+
+    await transport.sendMail({
+      from: process.env.MAILTRAP_SENDER_EMAIL || "noreply@example.com",
+      to: toEmail,
+      subject: "Password Reset OTP",
+      text: `Your one-time password (OTP) for resetting your password is: ${otp}\nThis OTP is valid for 15 minutes.`,
       html: `
-        <p>You requested a password reset. Click the link below to reset your password:</p>
-        <a href="${resetUrl}">Reset Password</a>
-        <p>This link will expire in 15 minutes.</p>
+        <h2>Password Reset OTP</h2>
+        <p>Your one-time password (OTP) for resetting your password is:</p>
+        <h3>${otp}</h3>
+        <p>This OTP is valid for 15 minutes.</p>
         <p>If you did not request this, please ignore this email.</p>
       `,
     });
-    logger.info({ message: "Password reset email sent", to });
+
+    logger.info({ message: "OTP email sent successfully", toEmail });
   } catch (error) {
     logger.error({
-      message: "Failed to send password reset email",
+      message: "Failed to send OTP email",
       error: error.message,
       stack: error.stack,
+      toEmail,
     });
-    throw error;
+    throw new Error("Failed to send OTP email");
   }
 };
