@@ -8,6 +8,7 @@ import {
   updateVendor,
   deleteVendor,
   forgotPassword,
+  resendOtp,
   verifyOtp,
   resetPassword,
   changePassword,
@@ -28,6 +29,7 @@ router.post("/logout", authMiddleware, logoutVendor);
 router.put("/update/:id", authMiddleware, updateVendor);
 router.delete("/delete/:id", authMiddleware, deleteVendor);
 router.post("/forgot-password", forgotPassword);
+router.post("/resend-otp", resendOtp);
 router.post("/verify-otp", verifyOtp);
 router.post("/reset-password", resetPassword);
 router.post("/change-password", authMiddleware, changePassword);

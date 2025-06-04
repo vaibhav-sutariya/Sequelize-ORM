@@ -696,6 +696,84 @@ export const forgotPassword = [
     }
   },
 ];
+export const resendOtp = [
+  validate(schemas.resendOtp),
+  async (req, res, next) => {
+    const { email } = req.body;
+
+    try {
+      logger.debug({ message: "Resend OTP attempt", email });
+
+      const vendor = await Vendor.findOne({ where: { email } });
+      if (!vendor) {
+        const error = new Error("Vendor not found");
+        error.status = 404;
+        return next(error);
+      }
+
+      // Check rate limit: max 3 OTPs in 15 minutes
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+      const recentOtps = await Token.count({
+        where: {
+          vendorId: vendor.id,
+          type: "reset_otp",
+          createdAt: { [Op.gte]: fifteenMinutesAgo },
+        },
+      });
+
+      if (recentOtps >= 3) {
+        const error = new Error(
+          "Too many OTP requests. Please try again later."
+        );
+        error.status = 429;
+        return next(error);
+      }
+
+      // Revoke existing OTPs
+      await Token.update(
+        { revoked: true },
+        {
+          where: {
+            vendorId: vendor.id,
+            type: "reset_otp",
+            expiresAt: { [Op.gt]: new Date() },
+            revoked: false,
+          },
+        }
+      );
+
+      // Generate and send new OTP
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpHash = crypto
+        .createHmac("sha256", process.env.RESET_TOKEN_SECRET)
+        .update(otp)
+        .digest("hex");
+
+      await Token.create({
+        vendorId: vendor.id,
+        type: "reset_otp",
+        token: otpHash,
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      });
+
+      await sendOtpEmail(email, otp);
+
+      logger.info({
+        message: "New OTP generated and sent",
+        vendorId: vendor.id,
+      });
+
+      res.json({ message: "New OTP sent to your email" });
+    } catch (error) {
+      logger.error({
+        message: "Resend OTP error",
+        error: error.message,
+        stack: error.stack,
+      });
+      next(error);
+    }
+  },
+];
 
 export const verifyOtp = [
   validate(schemas.verifyOtp),
